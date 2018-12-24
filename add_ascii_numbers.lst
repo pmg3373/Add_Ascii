@@ -1,0 +1,157 @@
+   1 0000               # File:		add_ascii_numbers.asm
+   2 0000               # Author:	K. Reek
+   3 0000               # Contributors:	P. White, W. Carithers
+   4 0000               #		<<Patrick Godard>>
+   5 0000               #
+   6 0000               # Updates:
+   7 0000               #		3/2004	M. Reek, named constants
+   8 0000               #		10/2007 W. Carithers, alignment
+   9 0000               #		09/2009 W. Carithers, separate assembly
+  10 0000               #
+  11 0000               # Description:	Add two ASCII numbers and store the result in ASCII.
+  12 0000               #
+  13 0000               # Arguments:	a0: address of parameter block.  The block consists of
+  14 0000               #		four words that contain (in this order):
+  15 0000               #
+  16 0000               #			address of first input string
+  17 0000               #			address of second input string
+  18 0000               #			address where result should be stored
+  19 0000               #			length of the strings and result buffer
+  20 0000               #
+  21 0000               #		(There is actually other data after this in the
+  22 0000               #		parameter block, but it is not relevant to this routine.)
+  23 0000               #
+  24 0000               # Returns:	The result of the addition, in the buffer specified by
+  25 0000               #		the parameter block.
+  26 0000               #
+  27 0000               
+  28 0000               	.globl	add_ascii_numbers
+  29 0000               
+  30 0000               add_ascii_numbers:
+  31 0000               A_FRAMESIZE = 40
+  32 0000               
+  33 0000               #
+  34 0000               # Save registers ra and s0 - s7 on the stack.
+  35 0000               #
+  36 0000 23BDFFD8		addi 	$sp, $sp, -A_FRAMESIZE
+  37 0004 AFBF0024		sw 	$ra, -4+A_FRAMESIZE($sp)
+  38 0008 AFB7001C		sw 	$s7, 28($sp)
+  39 000c AFB60018		sw 	$s6, 24($sp)
+  40 0010 AFB50014		sw 	$s5, 20($sp)
+  41 0014 AFB40010		sw 	$s4, 16($sp)
+  42 0018 AFB3000C		sw 	$s3, 12($sp)
+  43 001c AFB20008		sw 	$s2, 8($sp)
+  44 0020 AFB10004		sw 	$s1, 4($sp)
+  45 0024 AFB00000		sw 	$s0, 0($sp)
+  46 0028               	
+  47 0028               # ##### BEGIN STUDENT CODE BLOCK 1 #####
+  48 0028               
+  49 0028 34080000		li	$t0, 0		#String 1
+  50 002c 34090000		li	$t1, 0		#String 2
+  51 0030 340A0000		li	$t2, 0		#Output String
+  52 0034 340B0000		li	$t3, 0		#String Size
+  53 0038 340C0000		li	$t4, 0		#String 1 Byte and result
+  54 003c 340D0000		li	$t5, 0		#String 2 Byte
+  55 0040 340E0000		li	$t6, 0		#Carry Bit
+  56 0044 340F0000		li	$t7, 0		#Math Bit
+  57 0048 34180000		li	$t8, 0		#loop counter
+  58 004c               
+  59 004c 24880000		la	$t0, 0($a0)
+  60 0050 25080000		la	$t0, 0($t0)
+  61 0054 24890004		la	$t1, 4($a0)
+  62 0058 25290000		la	$t1, 0($t1)
+  63 005c 248A0008		la	$t2, 8($a0)
+  64 0060 254A0000		la	$t2, 0($t2)
+  65 0064 248B000C		la	$t3, 12($a0)
+  66 0068               
+  67 0068               # Update All Addresses to point to the end of the string
+  68 0068               
+  69 0068 8D6B0000		lw	$t3, 0($t3)
+  70 006c               	
+  71 006c               #decrement the number of chars by one during offset math
+  72 006c               #need to move the address for each char after 1
+  73 006c 340F0001		li	$t7, 1
+  74 0070 016F5822		sub $t3, $t3, $t7
+  75 0074               	
+  76 0074 340F0002		li	$t7, 2		#one byte
+  77 0078 01EB0018		mul	$t7, $t3
+     007c 00007812
+  78 0080               	
+  79 0080 340F0001		li	$t7, 1
+  80 0084 016F5820		add $t3, $t3, $t7
+  81 0088               	
+  82 0088 00007812		mflo	$t7
+  83 008c               	
+  84 008c               #offset the address to start reading from back instead of front
+  85 008c 010F4020		add	$t0, $t0, $t7
+  86 0090 012F4820		add	$t1, $t1, $t7
+  87 0094 014F5020		add	$t2, $t2, $t7
+  88 0098               
+  89 0098               add_ascii_numbers_loop_begin:
+  90 0098               #load the ascii chars
+  91 0098 810C0000		lb	$t4, 0($t0)
+  92 009c 812D0000		lb	$t5, 0($t1)
+  93 00a0               	
+  94 00a0               #do ascii addition adjustment pre add to prevent overflow
+  95 00a0 340F0030		li	$t7, 48
+  96 00a4 018F6022		sub	$t4, $t4, $t7
+  97 00a8               	
+  98 00a8 018D6020		add 	$t4, $t4, $t5
+  99 00ac 018E6020		add		$t4, $t4, $t6	#need to add carry bit
+ 100 00b0               	
+ 101 00b0               #check if we need to carry a 1 over
+ 102 00b0 2998003A		slti	$t8, $t4, 58
+ 103 00b4 13000002		beq	$t8, $zero, add_ascii_numbers_gt_ascii
+ 104 00b8               
+ 105 00b8               #clear carry bit and jump over the carry math
+ 106 00b8 340E0000		li 	$t6, 0
+ 107 00bc 08000033		j 	add_ascii_numbers_gt_end_if
+ 108 00c0               
+ 109 00c0               add_ascii_numbers_gt_ascii:
+ 110 00c0               #carry bit math
+ 111 00c0 340F000A		li	$t7, 10
+ 112 00c4 018F6022		sub	$t4, $t4, $t7
+ 113 00c8 340E0001		li	$t6, 1
+ 114 00cc               	
+ 115 00cc               add_ascii_numbers_gt_end_if:
+ 116 00cc               #save and loop inc
+ 117 00cc A14C0000		sb	$t4, 0($t2)
+ 118 00d0 23180001		addi	$t8, 1
+ 119 00d4 130B0005		beq	$t8, $t3, add_ascii_numbers_loop_end
+ 120 00d8               
+ 121 00d8               #move addresses back 1 byte
+ 122 00d8 340F0002		li	$t7, 2
+ 123 00dc 010F4022		sub	$t0, $t0, $t7
+ 124 00e0 012F4822		sub	$t1, $t1, $t7
+ 125 00e4 014F5022		sub	$t2, $t2, $t7
+ 126 00e8               	
+ 127 00e8 08000026		j	add_ascii_numbers_loop_begin
+ 128 00ec               	
+ 129 00ec               add_ascii_numbers_loop_end:
+ 130 00ec               
+ 131 00ec               
+ 132 00ec               # ###### END STUDENT CODE BLOCK 1 ######
+ 133 00ec               
+ 134 00ec               #
+ 135 00ec               # Restore registers ra and s0 - s7 from the stack.
+ 136 00ec               #
+ 137 00ec 8FBF0024		lw 	$ra, -4+A_FRAMESIZE($sp)
+ 138 00f0 8FB7001C		lw 	$s7, 28($sp)
+ 139 00f4 8FB60018		lw 	$s6, 24($sp)
+ 140 00f8 8FB50014		lw 	$s5, 20($sp)
+ 141 00fc 8FB40010		lw 	$s4, 16($sp)
+ 142 0100 8FB3000C		lw 	$s3, 12($sp)
+ 143 0104 8FB20008		lw 	$s2, 8($sp)
+ 144 0108 8FB10004		lw 	$s1, 4($sp)
+ 145 010c 8FB00000		lw 	$s0, 0($sp)
+ 146 0110 23BD0028		addi 	$sp, $sp, A_FRAMESIZE
+ 147 0114               
+ 148 0114 03E00008		jr	$ra			# Return to the caller.
+
+
+A_FRAMESIZE                   = 00000028   
+add_ascii_numbers               00000000 RG text 
+add_ascii_numbers_gt_ascii      000000C0 R  text 
+add_ascii_numbers_gt_end_if     000000CC R  text 
+add_ascii_numbers_loop_begin    00000098 R  text 
+add_ascii_numbers_loop_end      000000EC R  text 
